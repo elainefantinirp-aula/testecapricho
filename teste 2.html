@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Selecione as palavras</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-100: #dbeafe;
+      --primary-200: #bfdbfe;
+      --primary-600: #2563eb;
+      --selected: #a7d9ff;
+      --hover: #f3f4f6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+      padding: 24px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0 0 6px 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: #111827;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background .15s, border-color .15s;
+    }
+    .btn:hover { background: #f9fafb; }
+    .btn.primary {
+      background: var(--primary-600);
+      border-color: var(--primary-600);
+      color: #fff;
+    }
+    .btn.primary:hover { filter: brightness(0.95); }
+    .grid {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 700px; /* garante boa visualização em telas menores */
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      color: #0f172a;
+      font-weight: 600;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      z-index: 1;
+    }
+    tbody td, tfoot td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 12px;
+      vertical-align: middle;
+    }
+    tbody td {
+      cursor: pointer;
+      transition: background-color .15s;
+      user-select: none;
+    }
+    tbody td:hover { background: var(--hover); }
+    tbody td.selected {
+      background: var(--primary-100);
+      font-weight: 600;
+      outline: 1px solid var(--primary-200);
+    }
+    tfoot td {
+      font-weight: 700;
+      background: #f8fafc;
+      text-align: center;
+    }
+    .legend {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 6px;
+      border: 1px solid var(--border);
+    }
+    .dot.sel { background: var(--primary-100); border-color: var(--primary-200); }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Seleção de Palavras</h1>
+      <p class="sub">Clique para selecionar/deselecionar. O total por coluna aparece no rodapé.</p>
+    </header>
+
+    <div class="card">
+      <div class="toolbar">
+        <div class="legend">
+          <span><span class="dot"></span> Normal</span>
+          <span><span class="dot sel"></span> Selecionado</span>
+        </div>
+        <div>
+          <button id="clearAll" class="btn">Limpar seleções</button>
+          <button id="exportCSV" class="btn">Exportar selecionadas (CSV)</button>
+          <button id="copyShare" class="btn primary">Copiar link com seleção</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <table id="wordsTable" aria-label="Tabela de palavras selecionáveis em quatro colunas">
+          <thead>
+            <tr>
+              <th>Coluna 1</th>
+              <th>Coluna 2</th>
+              <th>Coluna 3</th>
+              <th>Coluna 4</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr id="countsRow"></tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="hint">Dica: você pode compartilhar um link que mantém a seleção atual (botão “Copiar link com seleção”).</div>
+    </div>
+  </div>
+
+  <script>
+    // Edite aqui as palavras (cada subarray é uma linha com 4 colunas)
+    const wordsData = [
+      ["Despreocupado", "Impulsivo", "Pessimista", "Cuidadoso"],
+      ["Calmo", "Irrequieto", "Profundo", "Metódico"],
+      ["Animado", "Esquentado", "Amuado", "Estável"],
+      ["Jovial", "Ativo", "Sóbrio", "Passivo"],
+      ["Sociável", "Excitável", "Nervoso", "Pacato"],
+      ["Simpático", "Corado", "Distante", "Pensativo"],
+      ["Loquaz", "Agressivo", "Quieto", "Calmo"],
+      ["Rápido", "Líder", "Reservado", "Controlado"],
+      ["Workaholic", "Convincente", "Resignado", "Folgado"],
+      ["Tagarela", "Cheio de energia", "Triste", "Plácido"],
+      ["Eloquente", "Extrovertido", "Desanimado", "Sem pressa"],
+      ["Superficial", "Turbulento", "Pensativo", "Lento"],
+      ["Expansivo", "Impaciente", "Introspectivo", "Implacável"],
+      ["Falante", "Empreendedor", "Egoísta", "Comedido"],
+      ["Amigável", "Pioneiro", "Exigente", "Tranquilo"],
+      ["Adaptável", "Barulhento", "Suscetível", "Ensimesmado"],
+      ["Pitoresco", "Prático", "Leitor", "Reservado"],
+      ["Brilhante", "Dramático", "Lento", "Sonhador"],
+      ["Impaciente", "Esquecido", "Tristonho", "Gosta de rotina"],
+      ["Irresponsável", "Esportivo", "Taciturno", "Lento para aprender"],
+      ["Não confiável", "Competitivo", "Intelectual", "Perseverante"],
+      ["Fugidio", "Resistente", "Boa memória", "Obstinado"],
+      ["Flexível", "Dominador", "Observador", "Tímido"],
+      ["Generoso", "Intolerante", "Ingrato", "Constante"],
+      ["Matutino", "Obstinado", "Insatisfeito", "Sensato"],
+      ["Volúvel", "Irascível", "Abnegado", "Indiferente"],
+      ["Feliz", "Audaz", "Inconsolável", "Apático"]
+    ];
+
+    const table = document.getElementById('wordsTable');
+    const tbody = table.querySelector('tbody');
+    const countsRow = document.getElementById('countsRow');
+    const numCols = wordsData[0]?.length || 4;
+
+    // Restaura seleção a partir da URL (compartilhável)
+    function readSelectionFromHash() {
+      try {
+        if (!location.hash) return null;
+        const raw = decodeURIComponent(location.hash.slice(1));
+        const obj = JSON.parse(raw);
+        if (Array.isArray(obj?.selected)) return new Set(obj.selected);
+      } catch (e) {}
+      return null;
+    }
+    // Salva seleção na URL
+    function writeSelectionToHash(selectedSet) {
+      const payload = JSON.stringify({ selected: Array.from(selectedSet) });
+      const hash = encodeURIComponent(payload);
+      history.replaceState(null, '', '#' + hash);
+    }
+
+    // Constrói a tabela
+    function buildTable() {
+      // Corpo
+      wordsData.forEach((rowArr, r) => {
+        const tr = document.createElement('tr');
+        rowArr.forEach((word, c) => {
+          const td = document.createElement('td');
+          td.textContent = word;
+          td.dataset.r = r;
+          td.dataset.c = c;
+          td.addEventListener('click', () => {
+            td.classList.toggle('selected');
+            updateCounts();
+            writeSelectionToHash(getSelectedIds());
+          });
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      // Rodapé de contagens
+      for (let c = 0; c < numCols; c++) {
+        const td = document.createElement('td');
+        td.id = `count-col-${c}`;
+        td.style.textAlign = 'center';
+        td.textContent = '0 selecionadas';
+        countsRow.appendChild(td);
+      }
+
+      // Se houver seleção na URL, aplica
+      const fromHash = readSelectionFromHash();
+      if (fromHash) {
+        tbody.querySelectorAll('td').forEach(td => {
+          const id = `${td.dataset.r}-${td.dataset.c}`;
+          if (fromHash.has(id)) td.classList.add('selected');
+        });
+      }
+      updateCounts();
+    }
+
+    function updateCounts() {
+      const counts = Array(numCols).fill(0);
+      tbody.querySelectorAll('td.selected').forEach(td => {
+        const c = Number(td.dataset.c);
+        counts[c]++;
+      });
+      counts.forEach((v, c) => {
+        const el = document.getElementById(`count-col-${c}`);
+        el.textContent = `${v} selecionadas`;
+      });
+    }
+
+    function getSelectedIds() {
+      const set = new Set();
+      tbody.querySelectorAll('td.selected').forEach(td => {
+        set.add(`${td.dataset.r}-${td.dataset.c}`);
+      });
+      return set;
+    }
+
+    // Ações da barra
+    document.getElementById('clearAll').addEventListener('click', () => {
+      tbody.querySelectorAll('td.selected').forEach(td => td.classList.remove('selected'));
+      updateCounts();
+      writeSelectionToHash(getSelectedIds());
+    });
+
+    document.getElementById('exportCSV').addEventListener('click', () => {
+      // Exporta apenas as selecionadas com rótulos de linha/coluna
+      const rows = [['Linha', 'Coluna', 'Palavra']];
+      tbody.querySelectorAll('td.selected').forEach(td => {
+        const r = Number(td.dataset.r) + 1;
+        const c = Number(td.dataset.c) + 1;
+        const w = td.textContent;
+        rows.push([r, c, w]);
+      });
+      const csv = rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'selecionadas.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('copyShare').addEventListener('click', async () => {
+      writeSelectionToHash(getSelectedIds());
+      try {
+        await navigator.clipboard.writeText(location.href);
+        const btn = document.getElementById('copyShare');
+        const old = btn.textContent;
+        btn.textContent = 'Link copiado!';
+        setTimeout(() => btn.textContent = old, 1200);
+      } catch {
+        alert('Não foi possível copiar automaticamente. Copie o endereço da barra do navegador.');
+      }
+    });
+
+    // Inicializa
+    buildTable();
+  </script>
+</body>
+</html>
